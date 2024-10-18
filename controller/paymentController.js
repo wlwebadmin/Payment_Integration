@@ -194,7 +194,7 @@ const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
               slackData.email
             }\nContact Number: ${slackData.contact_num}\nAmount Paid: ${
               slackData.amount
-            }\n\n`;
+            }\nPayment Id: ${slackData.payment_id}\n\n`;
     } else {
       text =
         slackData.platform == "Stripe"
@@ -353,6 +353,7 @@ module.exports.paymentProcess = async (req, res) => {
       payment_status: "",
       amount: "",
       platform: "",
+      payment_id: "",
     };
     slackData.platform = data.type ? "Stripe" : "Razorpay";
     if (paymentType == "stripe") {
@@ -379,6 +380,7 @@ module.exports.paymentProcess = async (req, res) => {
       slackData.amount = `${data.payload.payment.entity.currency.toUpperCase()} ${
         Number(data.payload.payment.entity.amount) / 100
       } `;
+      slackData.payment_id = data.payload.payment.entity.id ?? "";
     }
 
     if (paymentStatus == "success") {
