@@ -220,12 +220,8 @@ const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
     const token = process.env.SLACK_BOT_KEY;
     let text;
     if (paymentStatus == "success") {
-      console.log({ amount: slackData.amount });
-
-      if (
-        slackData.amount.includes("INR 944") ||
-        slackData.amount.includes("USD 10")
-      ) {
+      const amount = slackData.amount.toString().trim();
+      if (amount == "INR 944" || amount == "USD 10") {
         await sendSlackTopupMessage(slackData, SLACK_CHANNEL_ID_TOP_UP);
       }
       text =
