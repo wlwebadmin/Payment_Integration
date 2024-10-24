@@ -10,6 +10,7 @@ const MAILERLITE_API_KEY = process.env.MAILERLITE_API_KEY;
 const SLACK_ERROR_CHANEEL_ID = process.env.SLACK_ERROR_CHANEEL_ID;
 const SLACK_CHANNEL_ID_SUCCESS = process.env.SLACK_CHANNEL_ID_SUCCESS;
 const SLACK_CHANNEL_ID_FAILED = process.env.SLACK_CHANNEL_ID_FAILED;
+const SLACK_CHANNEL_ID_TOP_UP = process.env.SLACK_CHANNEL_ID_TOP_UP;
 
 //Error Slack
 const sendErrorSlackMessage = async (error) => {
@@ -173,12 +174,60 @@ const updateUserMailerLite = async (slackData) => {
   }
 };
 
+//send slack topup message
+const sendSlackTopupMessage = async (slackData, channelID) => {
+  try {
+    const token = process.env.SLACK_BOT_KEY;
+    const text =
+      slackData.platform == "Stripe"
+        ? `*${"Stripe Payment - Topup Order"}*\nName: ${
+            slackData.name
+          }\nEmail: ${slackData.email}\nContact Number: ${
+            slackData.contact_num
+          }\nAmount Paid: ${slackData.amount}\nPlan: Topup Plan - GW Final\n`
+        : `*${`${slackData.platform} Payment - Topup Order`}*\nEmail: ${
+            slackData.email
+          }\nContact Number: ${slackData.contact_num}\nAmount Paid: ${
+            slackData.amount
+          }\nPayment Id: ${slackData.payment_id}\n\n`;
+
+    const response = await axios.post(
+      "https://slack.com/api/chat.postMessage",
+      {
+        channel: channelID,
+        text: text,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    if (response.data.ok) {
+      return true;
+    }
+  } catch (error) {
+    console.log(error);
+    await sendErrorSlackMessage("Slack error ");
+    return false;
+  }
+};
+
 //Send slack message
 const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
   try {
     const token = process.env.SLACK_BOT_KEY;
     let text;
     if (paymentStatus == "success") {
+      console.log({ amount: slackData.amount });
+
+      if (
+        slackData.amount.includes("INR 944") ||
+        slackData.amount.includes("USD 10")
+      ) {
+        await sendSlackTopupMessage(slackData, SLACK_CHANNEL_ID_TOP_UP);
+      }
       text =
         slackData.platform == "Stripe"
           ? `*${
