@@ -353,6 +353,7 @@ const setCustomTimeout = async (id, slackData) => {
 module.exports.paymentProcess = async (req, res) => {
   try {
     const data = req.body;
+    console.log(data)
     const paymentType = data.type ? "stripe" : "razorPay";
     let paymentStatus;
     let slackData = {
