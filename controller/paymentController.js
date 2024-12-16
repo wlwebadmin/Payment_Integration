@@ -214,6 +214,12 @@ const sendSlackTopupMessage = async (slackData, channelID) => {
   }
 };
 
+const checkTopUpOrderAmount = (amount) => {
+  if (amount === "USD 180") return false;
+  const value = Math.round(parseFloat(amount.split(" ")[1]));
+  return value % 944 === 0 || value % 10 === 0;
+};
+
 //Send slack message
 const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
   try {
@@ -221,7 +227,7 @@ const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
     let text;
     if (paymentStatus == "success") {
       const amount = slackData.amount.toString().trim();
-      if (amount == "INR 944" || amount == "USD 10") {
+      if (checkTopUpOrderAmount(amount)) {
         await sendSlackTopupMessage(slackData, SLACK_CHANNEL_ID_TOP_UP);
       }
       text =
@@ -427,6 +433,7 @@ module.exports.paymentProcess = async (req, res) => {
       } `;
       slackData.payment_id = data.payload.payment.entity.id ?? "";
     }
+    console.log(slackData);
 
     if (paymentStatus == "success") {
       await removeUserFromPaymentStatusData(slackData.email);
