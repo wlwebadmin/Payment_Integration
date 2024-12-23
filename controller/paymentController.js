@@ -217,7 +217,8 @@ const sendSlackTopupMessage = async (slackData, channelID) => {
 const checkTopUpOrderAmount = (amount) => {
   if (amount === "USD 180") return false;
   const value = parseFloat(amount.split(" ")[1]);
-  return value % 944 === 0 || value % 10 === 0;
+  const currencyType = amount.split(" ")[0];
+  return currencyType.includes("INR") ? value % 944 === 0 : value % 10 === 0;
 };
 
 //Send slack message
