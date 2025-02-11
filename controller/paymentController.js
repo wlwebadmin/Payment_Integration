@@ -218,7 +218,10 @@ const checkTopUpOrderAmount = (amount) => {
   if (amount === "USD 180") return false;
   const value = parseFloat(amount.split(" ")[1]);
   const currencyType = amount.split(" ")[0];
-  return currencyType.includes("INR") ? value % 944 === 0 : value % 10 === 0;
+  const indiaAmount = [1120, 2230, 4460, 11140, 22280, 33420, 44560];
+  return currencyType?.includes("INR") && indiaAmount?.includes(value)
+    ? true
+    : value % 10 === 0;
 };
 
 //Send slack message
@@ -355,7 +358,7 @@ const initiateProcess = async (slackData) => {
   let userRemovedFromGroup = 0;
   if (currentUserGroup.length > 0) {
     currentUserGroup.forEach(async (group) => {
-      if (checkUserGroupId.includes(group.id)) {
+      if (checkUserGroupId?.includes(group?.id)) {
         userRemovedFromGroup = userRemovedFromGroup + 1;
         await removeUserToMailerLite(user.id, group.id);
       }
@@ -391,8 +394,13 @@ const setCustomTimeout = async (id, slackData) => {
   };
 };
 
+const checkInvoicePayment = (type) => {
+  return type?.includes("invoice") ? true : false;
+};
+
 module.exports.paymentProcess = async (req, res) => {
   try {
+    res.status(200).json({ message: "Process initiated" });
     const data = req.body;
     const paymentType = data.type ? "stripe" : "razorPay";
     let paymentStatus;
@@ -410,20 +418,45 @@ module.exports.paymentProcess = async (req, res) => {
     slackData.platform = data.type ? "Stripe" : "Razorpay";
     if (paymentType == "stripe") {
       paymentStatus =
-        data.type == "invoice.payment_succeeded" ? "success" : "failed";
+        data.type == "invoice.payment_succeeded" ||
+        (data.type == "checkout.session.completed" &&
+          data?.data?.object?.payment_status == "paid")
+          ? "success"
+          : "failed";
+
       slackData.payment_status = paymentStatus;
-      slackData.title = data.data.object.billing_reason.includes(
+
+      slackData.title = data?.data?.object?.billing_reason?.includes(
         "subscription_create"
       )
         ? "new"
         : "renewal";
-      slackData.email = data.data.object.customer_email;
-      slackData.plan = data.data.object.lines.data[0].description;
-      slackData.name = data.data.object.customer_name;
-      slackData.contact_num = data.data.object.customer_phone;
-      slackData.amount = `${data.data.object.lines.data[0].currency.toUpperCase()} ${
-        Number(data.data.object.lines.data[0].amount) / 100
-      }`;
+
+      const invoicePayment = checkInvoicePayment(data?.type);
+
+      slackData.email = invoicePayment
+        ? data.data.object.customer_email
+        : data.data.object.customer_details.email;
+
+      slackData.plan = invoicePayment
+        ? data.data.object.lines.data[0].description
+        : "";
+
+      slackData.name = invoicePayment
+        ? data.data.object.customer_name
+        : data.data.object.customer_details.name;
+
+      slackData.contact_num = invoicePayment
+        ? data.data.object.customer_phone
+        : data.data.object.customer_details.phone;
+
+      slackData.amount = invoicePayment
+        ? `${data.data.object.lines.data[0].currency.toUpperCase()} ${
+            Number(data.data.object.lines.data[0].amount) / 100
+          }`
+        : `${data.data.object.currency.toUpperCase()} ${
+            Number(data.data.object.amount_total) / 100
+          }`;
     } else {
       paymentStatus = data.event == "payment.failed" ? "failed" : "success";
       slackData.payment_status = paymentStatus;
@@ -446,9 +479,10 @@ module.exports.paymentProcess = async (req, res) => {
         SLACK_CHANNEL_ID_SUCCESS,
         paymentStatus
       );
-      return message
-        ? res.status(200).json({ message: "Process Completed" })
-        : res.status(500).json({ message: "Slack error" });
+      return;
+      // return message
+      //   ? res.status(200).json({ message: "Process Completed" })
+      //   : res.status(500).json({ message: "Slack error" });
     } else {
       const userPaymentExist = await checkUserPaymentStatusExist(
         slackData.email
@@ -470,7 +504,8 @@ module.exports.paymentProcess = async (req, res) => {
         setCustomTimeout(slackData.email, slackData);
       }
 
-      return res.status(200).json({ Message: "Process initiated" });
+      return;
+      // res.status(200).json({ Message: "Process initiated" });
     }
   } catch (error) {
     console.log(error);
