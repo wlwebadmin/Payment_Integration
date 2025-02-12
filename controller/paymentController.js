@@ -229,8 +229,14 @@ const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
   try {
     const token = process.env.SLACK_BOT_KEY;
     let text;
+    const amount = slackData.amount.toString().trim();
+    if (
+      slackData.type === "checkout.session.completed" &&
+      !checkTopUpOrderAmount(amount)
+    ) {
+      return;
+    }
     if (paymentStatus == "success") {
-      const amount = slackData.amount.toString().trim();
       if (checkTopUpOrderAmount(amount)) {
         await sendSlackTopupMessage(slackData, SLACK_CHANNEL_ID_TOP_UP);
       }
@@ -414,6 +420,7 @@ module.exports.paymentProcess = async (req, res) => {
       amount: "",
       platform: "",
       payment_id: "",
+      type: "",
     };
     slackData.platform = data.type ? "Stripe" : "Razorpay";
     if (paymentType == "stripe") {
@@ -425,7 +432,7 @@ module.exports.paymentProcess = async (req, res) => {
           : "failed";
 
       slackData.payment_status = paymentStatus;
-
+      slackData.type = data.type ? data.type : "";
       slackData.title = data?.data?.object?.billing_reason?.includes(
         "subscription_create"
       )
