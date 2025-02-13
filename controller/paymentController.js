@@ -230,20 +230,20 @@ const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
     const token = process.env.SLACK_BOT_KEY;
     let text;
     const amount = slackData.amount.toString().trim();
-    if (
-      slackData.type === "checkout.session.completed" &&
-      !checkTopUpOrderAmount(amount)
-    ) {
+    const topUpOrder = checkTopUpOrderAmount(amount);
+    if (slackData.type === "checkout.session.completed" && !topUpOrder) {
       return;
     }
     if (paymentStatus == "success") {
-      if (checkTopUpOrderAmount(amount)) {
+      if (topUpOrder) {
         await sendSlackTopupMessage(slackData, SLACK_CHANNEL_ID_TOP_UP);
       }
       text =
         slackData.platform == "Stripe"
           ? `*${
-              slackData.title == "new"
+              topUpOrder
+                ? `${slackData.platform} Payment - Topup Order`
+                : slackData.title == "new"
                 ? `${slackData.platform} Payment - New Order`
                 : `${slackData.platform} - Renewal Order`
             }*\nName: ${slackData.name}\nEmail: ${
@@ -251,11 +251,15 @@ const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
             }\nContact Number: ${slackData.contact_num}\nAmount Paid: ${
               slackData.amount
             }\n\n`
-          : `*${`${slackData.platform} Payment - New Order`}*\nEmail: ${
-              slackData.email
-            }\nContact Number: ${slackData.contact_num}\nAmount Paid: ${
-              slackData.amount
-            }\nPayment Id: ${slackData.payment_id}\n\n`;
+          : `*${
+              topUpOrder
+                ? `${slackData.platform} Payment - Topup Order`
+                : `${slackData.platform} Payment - New Order`
+            }*\nEmail: ${slackData.email}\nContact Number: ${
+              slackData.contact_num
+            }\nAmount Paid: ${slackData.amount}\nPayment Id: ${
+              slackData.payment_id
+            }\n\n`;
     } else {
       text =
         slackData.platform == "Stripe"
