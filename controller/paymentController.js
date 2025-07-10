@@ -1,10 +1,10 @@
-require("dotenv").config();
-const axios = require("axios");
+require('dotenv').config();
+const axios = require('axios');
 
 //Hubspot headers
 const hubspotHeaders = {
   Authorization: `Bearer ${process.env.HUB_SPOT_API_KEY}`,
-  "Content-Type": "application/json",
+  'Content-Type': 'application/json',
 };
 const MAILERLITE_API_KEY = process.env.MAILERLITE_API_KEY;
 const SLACK_ERROR_CHANEEL_ID = process.env.SLACK_ERROR_CHANEEL_ID;
@@ -19,7 +19,7 @@ const sendErrorSlackMessage = async (error) => {
     const text = `${error}`;
 
     const response = await axios.post(
-      "https://slack.com/api/chat.postMessage",
+      'https://slack.com/api/chat.postMessage',
       {
         channel: SLACK_ERROR_CHANEEL_ID,
         text: text,
@@ -27,7 +27,7 @@ const sendErrorSlackMessage = async (error) => {
       {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
       }
     );
@@ -48,8 +48,8 @@ const getHubspotContactByEmail = async (email) => {
         {
           filters: [
             {
-              propertyName: "email",
-              operator: "EQ",
+              propertyName: 'email',
+              operator: 'EQ',
               value: email,
             },
           ],
@@ -58,7 +58,7 @@ const getHubspotContactByEmail = async (email) => {
     };
 
     const response = await axios.post(
-      "https://api.hubapi.com/crm/v3/objects/contacts/search",
+      'https://api.hubapi.com/crm/v3/objects/contacts/search',
       data,
       { headers: hubspotHeaders }
     );
@@ -66,8 +66,8 @@ const getHubspotContactByEmail = async (email) => {
       return response.data;
     }
   } catch (error) {
-    console.error("Error retrieving contact:", error.response.data);
-    await sendErrorSlackMessage("Get user hubspot error");
+    console.error('Error retrieving contact:', error.response.data);
+    await sendErrorSlackMessage('Get user hubspot error');
     return false;
   }
 };
@@ -84,8 +84,8 @@ const updateHubspotContactById = async (contactId, updateData) => {
     );
     return updateResponse.data;
   } catch (error) {
-    console.error("Error update hubspot user", error.response.data);
-    await sendErrorSlackMessage("Error update hubspot user");
+    console.error('Error update hubspot user', error.response.data);
+    await sendErrorSlackMessage('Error update hubspot user');
     return false;
   }
 };
@@ -94,21 +94,21 @@ const updateHubspotContactById = async (contactId, updateData) => {
 const createHubspotUserData = async (data) => {
   try {
     const response = await axios.post(
-      "https://api.hubapi.com/crm/v3/objects/contacts",
+      'https://api.hubapi.com/crm/v3/objects/contacts',
       data,
       {
         headers: hubspotHeaders,
       }
     );
-    console.log("Hubspot Contact created successfully:");
+    console.log('Hubspot Contact created successfully:');
 
     return response.data;
   } catch (error) {
     console.error(
-      "Error creating contact:",
+      'Error creating contact:',
       error.response ? error.response.data : error.message
     );
-    await sendErrorSlackMessage("Error create hubspot user");
+    await sendErrorSlackMessage('Error create hubspot user');
   }
 };
 
@@ -120,7 +120,7 @@ const getUserToMailerLite = async (email) => {
       {
         headers: {
           Authorization: MAILERLITE_API_KEY,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
       }
     );
@@ -139,14 +139,14 @@ const removeUserToMailerLite = async (subscriber_id, group_id) => {
       {
         headers: {
           Authorization: MAILERLITE_API_KEY,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
       }
     );
     return true;
   } catch (error) {
     console.log(error);
-    await sendErrorSlackMessage("Remove user from mailerlite error");
+    await sendErrorSlackMessage('Remove user from mailerlite error');
   }
 };
 
@@ -157,20 +157,20 @@ const updateUserMailerLite = async (slackData) => {
       `https://connect.mailerlite.com/api/subscribers/${slackData.email}`,
       {
         fields: {
-          payment_attempted: "yes",
+          payment_attempted: 'yes',
         },
       },
       {
         headers: {
           Authorization: MAILERLITE_API_KEY,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
       }
     );
-    console.log("Mailer_lite user updated and process completed");
+    console.log('Mailer_lite user updated and process completed');
   } catch (error) {
     console.log(error);
-    await sendErrorSlackMessage("Update user - mailer lite error");
+    await sendErrorSlackMessage('Update user - mailer lite error');
   }
 };
 
@@ -179,8 +179,8 @@ const sendSlackTopupMessage = async (slackData, channelID) => {
   try {
     const token = process.env.SLACK_BOT_KEY;
     const text =
-      slackData.platform == "Stripe"
-        ? `*${"Stripe Payment - Topup Order"}*\nName: ${
+      slackData.platform == 'Stripe'
+        ? `*${'Stripe Payment - Topup Order'}*\nName: ${
             slackData.name
           }\nEmail: ${slackData.email}\nContact Number: ${
             slackData.contact_num
@@ -192,7 +192,7 @@ const sendSlackTopupMessage = async (slackData, channelID) => {
           }\nPayment Id: ${slackData.payment_id}\n\n`;
 
     const response = await axios.post(
-      "https://slack.com/api/chat.postMessage",
+      'https://slack.com/api/chat.postMessage',
       {
         channel: channelID,
         text: text,
@@ -200,7 +200,7 @@ const sendSlackTopupMessage = async (slackData, channelID) => {
       {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
       }
     );
@@ -209,19 +209,22 @@ const sendSlackTopupMessage = async (slackData, channelID) => {
     }
   } catch (error) {
     console.log(error);
-    await sendErrorSlackMessage("Slack error ");
+    await sendErrorSlackMessage('Slack error ');
     return false;
   }
 };
 
 const checkTopUpOrderAmount = (amount) => {
-  if (amount === "USD 180") return false;
-  const value = parseFloat(amount.split(" ")[1]);
-  const currencyType = amount.split(" ")[0];
-  const indiaAmount = [1120, 2230, 4460, 11140, 22280, 33420, 44560];
-  return currencyType?.includes("INR") && indiaAmount?.includes(value)
+  if (amount === 'USD 180') return false;
+  const value = parseFloat(amount.split(' ')[1]);
+  const currencyType = amount.split(' ')[0];
+  const indiaAmount = [
+    1120, 2230, 4460, 11140, 22280, 33420, 44560, 2000, 3500, 7000, 12000,
+    22000,
+  ];
+  return currencyType?.includes('INR') && indiaAmount?.includes(value)
     ? true
-    : value % 10 === 0;
+    : value === 35 || value % 10 === 0;
 };
 
 //Send slack message
@@ -230,20 +233,24 @@ const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
     const token = process.env.SLACK_BOT_KEY;
     let text;
     const amount = slackData.amount.toString().trim();
-    const topUpOrder = checkTopUpOrderAmount(amount);
-    if (slackData.type === "checkout.session.completed" && !topUpOrder) {
+    const value = parseFloat(amount.split(' ')[1]);
+    if (value === 0) {
       return;
     }
-    if (paymentStatus == "success") {
+    const topUpOrder = checkTopUpOrderAmount(amount);
+    if (slackData.type === 'checkout.session.completed' && !topUpOrder) {
+      return;
+    }
+    if (paymentStatus == 'success') {
       if (topUpOrder) {
         await sendSlackTopupMessage(slackData, SLACK_CHANNEL_ID_TOP_UP);
       }
       text =
-        slackData.platform == "Stripe"
+        slackData.platform == 'Stripe'
           ? `*${
               topUpOrder
                 ? `${slackData.platform} Payment - Topup Order`
-                : slackData.title == "new"
+                : slackData.title == 'new'
                 ? `${slackData.platform} Payment - New Order`
                 : `${slackData.platform} - Renewal Order`
             }*\nName: ${slackData.name}\nEmail: ${
@@ -262,15 +269,15 @@ const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
             }\n\n`;
     } else {
       text =
-        slackData.platform == "Stripe"
-          ? `*${"Attempted Payments"}*\n${
-              slackData.title == "new" ? `New Payment` : ` Renewal Payment`
+        slackData.platform == 'Stripe'
+          ? `*${'Attempted Payments'}*\n${
+              slackData.title == 'new' ? `New Payment` : ` Renewal Payment`
             }\nName: ${slackData.name}\nEmail: ${
               slackData.email
             }\nContact Number: ${slackData.contact_num}\nPayment Status: ${
               slackData.payment_status
             }\nAmount: ${slackData.amount}\nPlatform: ${slackData.platform}\n\n`
-          : `*${"Attempted Payments"}*\n${`New Payment`}\nEmail: ${
+          : `*${'Attempted Payments'}*\n${`New Payment`}\nEmail: ${
               slackData.email
             }\nContact Number: ${slackData.contact_num}\nPayment Status: ${
               slackData.payment_status
@@ -280,7 +287,7 @@ const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
     }
 
     const response = await axios.post(
-      "https://slack.com/api/chat.postMessage",
+      'https://slack.com/api/chat.postMessage',
       {
         channel: channelID,
         text: text,
@@ -288,7 +295,7 @@ const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
       {
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
       }
     );
@@ -297,7 +304,7 @@ const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
     }
   } catch (error) {
     console.log(error);
-    await sendErrorSlackMessage("Slack error ");
+    await sendErrorSlackMessage('Slack error ');
     return false;
   }
 };
@@ -327,14 +334,14 @@ const initiateProcess = async (slackData) => {
     properties: {
       email: slackData.email,
       phone: slackData.contact_num,
-      product: "GW",
+      product: 'GW',
       payment_status: slackData.payment_status,
       platform: slackData.platform,
-      amount: slackData.amount.split(" ")[1],
+      amount: slackData.amount.split(' ')[1],
       group:
-        slackData.title == "new" || slackData.platform == "Razorpay"
-          ? "New Payment"
-          : "Renewal Payment",
+        slackData.title == 'new' || slackData.platform == 'Razorpay'
+          ? 'New Payment'
+          : 'Renewal Payment',
     },
   };
 
@@ -349,7 +356,7 @@ const initiateProcess = async (slackData) => {
     await updateHubspotContactById(contactId, data);
   } else {
     //New user create in hubspot
-    data.properties.hs_lead_status = "NEW";
+    data.properties.hs_lead_status = 'NEW';
     await createHubspotUserData(data);
   }
 
@@ -360,7 +367,7 @@ const initiateProcess = async (slackData) => {
     slackData.payment_status
   );
   const user = await getUserToMailerLite(slackData.email);
-  const checkUserGroupId = ["94835880713258212", "94839450966688832"];
+  const checkUserGroupId = ['94835880713258212', '94839450966688832'];
   let currentUserGroup = [];
   if (user?.groups?.length > 0) {
     currentUserGroup = user.groups;
@@ -405,43 +412,43 @@ const setCustomTimeout = async (id, slackData) => {
 };
 
 const checkInvoicePayment = (type) => {
-  return type?.includes("invoice") ? true : false;
+  return type?.includes('invoice') ? true : false;
 };
 
 module.exports.paymentProcess = async (req, res) => {
   try {
-    res.status(200).json({ message: "Process initiated" });
+    res.status(200).json({ message: 'Process initiated' });
     const data = req.body;
-    const paymentType = data.type ? "stripe" : "razorPay";
+    const paymentType = data.type ? 'stripe' : 'razorPay';
     let paymentStatus;
     let slackData = {
-      title: "",
-      email: "",
-      plan: "",
-      name: "",
-      contact_num: "",
-      payment_status: "",
-      amount: "",
-      platform: "",
-      payment_id: "",
-      type: "",
+      title: '',
+      email: '',
+      plan: '',
+      name: '',
+      contact_num: '',
+      payment_status: '',
+      amount: '',
+      platform: '',
+      payment_id: '',
+      type: '',
     };
-    slackData.platform = data.type ? "Stripe" : "Razorpay";
-    if (paymentType == "stripe") {
+    slackData.platform = data.type ? 'Stripe' : 'Razorpay';
+    if (paymentType == 'stripe') {
       paymentStatus =
-        data.type == "invoice.payment_succeeded" ||
-        (data.type == "checkout.session.completed" &&
-          data?.data?.object?.payment_status == "paid")
-          ? "success"
-          : "failed";
+        data.type == 'invoice.payment_succeeded' ||
+        (data.type == 'checkout.session.completed' &&
+          data?.data?.object?.payment_status == 'paid')
+          ? 'success'
+          : 'failed';
 
       slackData.payment_status = paymentStatus;
-      slackData.type = data.type ? data.type : "";
+      slackData.type = data.type ? data.type : '';
       slackData.title = data?.data?.object?.billing_reason?.includes(
-        "subscription_create"
+        'subscription_create'
       )
-        ? "new"
-        : "renewal";
+        ? 'new'
+        : 'renewal';
 
       const invoicePayment = checkInvoicePayment(data?.type);
 
@@ -451,7 +458,7 @@ module.exports.paymentProcess = async (req, res) => {
 
       slackData.plan = invoicePayment
         ? data.data.object.lines.data[0].description
-        : "";
+        : '';
 
       slackData.name = invoicePayment
         ? data.data.object.customer_name
@@ -469,18 +476,18 @@ module.exports.paymentProcess = async (req, res) => {
             Number(data.data.object.amount_total) / 100
           }`;
     } else {
-      paymentStatus = data.event == "payment.failed" ? "failed" : "success";
+      paymentStatus = data.event == 'payment.failed' ? 'failed' : 'success';
       slackData.payment_status = paymentStatus;
       slackData.email = data.payload.payment.entity.email;
       slackData.contact_num = data.payload.payment.entity.contact;
       slackData.amount = `${data.payload.payment.entity.currency.toUpperCase()} ${
         Number(data.payload.payment.entity.amount) / 100
       } `;
-      slackData.payment_id = data.payload.payment.entity.id ?? "";
+      slackData.payment_id = data.payload.payment.entity.id ?? '';
     }
     console.log(slackData);
 
-    if (paymentStatus == "success") {
+    if (paymentStatus == 'success') {
       await removeUserFromPaymentStatusData(slackData.email);
       // Clear the timeout before it executes
       clearCustomTimeout(slackData.email);
@@ -501,7 +508,7 @@ module.exports.paymentProcess = async (req, res) => {
       const UserData = {
         ...slackData,
         date: new Date().toISOString().slice(0, 10),
-        time: new Date().toLocaleTimeString("en-US", { hour12: false }),
+        time: new Date().toLocaleTimeString('en-US', { hour12: false }),
         status: false,
       };
       if (userPaymentExist) {
@@ -531,7 +538,7 @@ module.exports.get = async (req, res) => {
 const clearArray = () => {
   userPaymentStatusDatas = [];
   timeouts = {};
-  console.log("Array cleared at midnight:", new Date());
+  console.log('Array cleared at midnight:', new Date());
 };
 
 // Function to calculate time until next midnight
