@@ -234,15 +234,12 @@ const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
     let text;
     const amount = slackData.amount.toString().trim();
     const value = parseFloat(amount.split(' ')[1]);
-    if (value === 0) {
-      return;
-    }
     const topUpOrder = checkTopUpOrderAmount(amount);
     if (slackData.type === 'checkout.session.completed' && !topUpOrder) {
       return;
     }
     if (paymentStatus == 'success') {
-      if (topUpOrder) {
+      if (topUpOrder && value !== 0) {
         await sendSlackTopupMessage(slackData, SLACK_CHANNEL_ID_TOP_UP);
       }
       text =
