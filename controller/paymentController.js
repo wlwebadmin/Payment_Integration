@@ -239,9 +239,9 @@ const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
       return;
     }
     if (paymentStatus == 'success') {
-      if (topUpOrder && value !== 0) {
-        await sendSlackTopupMessage(slackData, SLACK_CHANNEL_ID_TOP_UP);
-      }
+      // if (topUpOrder && value !== 0) {
+      //   await sendSlackTopupMessage(slackData, SLACK_CHANNEL_ID_TOP_UP);
+      // }
       text =
         slackData.platform == 'Stripe'
           ? `*${
