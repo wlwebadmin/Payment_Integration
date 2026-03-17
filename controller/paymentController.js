@@ -202,7 +202,11 @@ const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
             }\nContact Number: ${slackData.contact_num}\nAmount Paid: ${
               slackData.amount
             }\n\n`
-          : `*${`${slackData.platform} Payment - New Order`}*\nEmail: ${
+          : `*${
+              slackData.title == "new"
+                ? `${slackData.platform} Payment - New Order`
+                : `${slackData.platform} - Renewal Order`
+            }*\nEmail: ${
               slackData.email
             }\nContact Number: ${slackData.contact_num}\nAmount Paid: ${
               slackData.amount
@@ -217,7 +221,9 @@ const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
             }\nContact Number: ${slackData.contact_num}\nPayment Status: ${
               slackData.payment_status
             }\nAmount: ${slackData.amount}\nPlatform: ${slackData.platform}\n\n`
-          : `*${"Attempted Payments"}*\n${`New Payment`}\nEmail: ${
+          : `*${"Attempted Payments"}*\n${
+              slackData.title == "new" ? `New Payment` : `Renewal Payment`
+            }\nEmail: ${
               slackData.email
             }\nContact Number: ${slackData.contact_num}\nPayment Status: ${
               slackData.payment_status
@@ -281,7 +287,7 @@ const initiateProcess = async (slackData) => {
       platform: slackData.platform,
       amount: slackData.amount.split(" ")[1],
       group:
-        slackData.title == "new" || slackData.platform == "Razorpay"
+        slackData.title == "new"
           ? "New Payment"
           : "Renewal Payment",
     },
@@ -391,6 +397,12 @@ module.exports.paymentProcess = async (req, res) => {
       slackData.amount = `${data.payload.payment.entity.currency.toUpperCase()} ${
         Number(data.data.object.lines.data[0].amount) / 100
       } `;
+      // Determine if this is a renewal or new order for Razorpay
+      const paymentEntity = data.payload.payment.entity;
+      const hasSubscription = data.payload.subscription ||
+                              paymentEntity.subscription_id ||
+                              data.event === "subscription.charged";
+      slackData.title = hasSubscription ? "renewal" : "new";
     }
 
     if (paymentStatus == "success") {
