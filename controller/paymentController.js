@@ -12,6 +12,95 @@ const SLACK_CHANNEL_ID_SUCCESS = process.env.SLACK_CHANNEL_ID_SUCCESS;
 const SLACK_CHANNEL_ID_FAILED = process.env.SLACK_CHANNEL_ID_FAILED;
 const SLACK_CHANNEL_ID_TOP_UP = process.env.SLACK_CHANNEL_ID_TOP_UP;
 
+// Cache: subscription_id -> first_invoice_date (prevents repeated API calls)
+const subscriptionFirstInvoiceCache = {};
+
+// Helper: Fetch with exponential backoff for rate limiting
+const fetchWithRetry = async (url, headers, maxRetries = 3) => {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await axios.get(url, { headers });
+    } catch (error) {
+      if (error.response?.status === 429 && attempt < maxRetries - 1) {
+        // Exponential backoff with jitter
+        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+        console.log(`Rate limited, retrying in ${Math.round(delay)}ms...`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      } else {
+        throw error;
+      }
+    }
+  }
+};
+
+// Detect if Razorpay payment is new order or renewal
+const getRazorpayPaymentType = async (invoiceId, paymentCreatedAt) => {
+  try {
+    if (!invoiceId) {
+      return 'new'; // One-time payment (no subscription)
+    }
+
+    const auth = Buffer.from(
+      `${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`
+    ).toString('base64');
+
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Basic ${auth}`,
+    };
+
+    // Get invoice details to retrieve subscription_id
+    const invoiceResponse = await fetchWithRetry(
+      `https://api.razorpay.com/v1/invoices/${invoiceId}`,
+      headers
+    );
+
+    const subscriptionId = invoiceResponse.data.subscription_id;
+    if (!subscriptionId) {
+      return 'new'; // No subscription linked
+    }
+
+    // Check cache first
+    if (subscriptionFirstInvoiceCache[subscriptionId]) {
+      const cachedFirstDate = subscriptionFirstInvoiceCache[subscriptionId];
+      const paymentDate = new Date(paymentCreatedAt * 1000)
+        .toISOString()
+        .split('T')[0];
+      return paymentDate === cachedFirstDate ? 'new' : 'renewal';
+    }
+
+    // Get all invoices for this subscription
+    const invoicesResponse = await fetchWithRetry(
+      `https://api.razorpay.com/v1/invoices?subscription_id=${subscriptionId}`,
+      headers
+    );
+
+    const invoices = invoicesResponse.data.items;
+    if (!invoices || invoices.length === 0) {
+      return 'new';
+    }
+
+    // Sort by billing_start (ascending) to find the first invoice
+    invoices.sort((a, b) => a.billing_start - b.billing_start);
+    const firstInvoice = invoices[0];
+    const firstInvoiceDate = new Date(firstInvoice.created_at * 1000)
+      .toISOString()
+      .split('T')[0];
+
+    // Cache the result
+    subscriptionFirstInvoiceCache[subscriptionId] = firstInvoiceDate;
+
+    // Compare dates only (not timestamps)
+    const paymentDate = new Date(paymentCreatedAt * 1000)
+      .toISOString()
+      .split('T')[0];
+    return paymentDate === firstInvoiceDate ? 'new' : 'renewal';
+  } catch (error) {
+    console.error('Error detecting Razorpay payment type:', error.message);
+    return 'new'; // Default to 'new' on error
+  }
+};
+
 //Error Slack
 const sendErrorSlackMessage = async (error) => {
   try {
@@ -258,7 +347,9 @@ const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
           : `*${
               topUpOrder
                 ? `${slackData.platform} Payment - Topup Order`
-                : `${slackData.platform} Payment - New Order`
+                : slackData.title == 'new'
+                ? `${slackData.platform} Payment - New Order`
+                : `${slackData.platform} - Renewal Order`
             }*\nEmail: ${slackData.email}\nContact Number: ${
               slackData.contact_num
             }\nAmount Paid: ${slackData.amount}\nPayment Id: ${
@@ -274,13 +365,13 @@ const sendSlackMessage = async (slackData, channelID, paymentStatus) => {
             }\nContact Number: ${slackData.contact_num}\nPayment Status: ${
               slackData.payment_status
             }\nAmount: ${slackData.amount}\nPlatform: ${slackData.platform}\n\n`
-          : `*${'Attempted Payments'}*\n${`New Payment`}\nEmail: ${
-              slackData.email
-            }\nContact Number: ${slackData.contact_num}\nPayment Status: ${
-              slackData.payment_status
-            }\nAmount: ${slackData.amount}\nPlatform: ${
-              slackData.platform
-            }\n\n`;
+          : `*${'Attempted Payments'}*\n${
+              slackData.title == 'new' ? `New Payment` : `Renewal Payment`
+            }\nEmail: ${slackData.email}\nContact Number: ${
+              slackData.contact_num
+            }\nPayment Status: ${slackData.payment_status}\nAmount: ${
+              slackData.amount
+            }\nPlatform: ${slackData.platform}\n\n`;
     }
 
     const response = await axios.post(
@@ -481,6 +572,10 @@ module.exports.paymentProcess = async (req, res) => {
         Number(data.payload.payment.entity.amount) / 100
       } `;
       slackData.payment_id = data.payload.payment.entity.id ?? '';
+      slackData.title = await getRazorpayPaymentType(
+        data.payload.payment.entity.invoice_id,
+        data.payload.payment.entity.created_at
+      );
     }
     console.log(slackData);
 
